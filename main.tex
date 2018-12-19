@@ -1,0 +1,44 @@
+\documentclass{article}
+
+\usepackage{listings}
+\usepackage{llvm/lang}
+\usepackage{llvm/style} 
+
+\begin{document}
+
+\section{LLVM IR}
+\begin{lstlisting}[language=llvm,style=llvm]
+class RISCVReg<bits<5> Enc, string n, list<string> alt = []>
+    : Register<n> {
+  let HWEncoding{4-0} = Enc;
+  let AltNames = alt;
+}
+
+def X0  : RISCVReg<0, "x0", ["zero"]>, DwarfRegNum<[0]>;
+// ...
+def X31 : RISCVReg<31,"x31", ["t6"]>, DwarfRegNum<[31]>;
+
+def XLenVT : ValueTypeByHwMode<[RV32, RV64, DefaultMode],
+                               [i32,  i64,  i32]>;
+def GPR : RegisterClass< "RISCV", [XLenVT], 32, 
+    (add (sequence "X%u", 0, 31))> { /* ... */ }
+\end{lstlisting}
+
+Here comes another one.
+\begin{lstlisting}[language=llvm,style=llvm]
+// Define the ADDI instruction.
+class ALU_ri<bits<3> funct3, string opcodestr>
+    : RVInstI<funct3, OPC_OP_IMM, 
+              (outs GPR:$rd), (ins GPR:$rs1, imm12:$imm12),
+              opcodestr, "$rd, $rs1, $imm12">;
+def ADDI : ALU_ri<0b000, "addi">;
+
+// Instruction selection pattern
+def : Pat<(add GPR:$rs1, simm:$imm12), 
+          (ADDI GPR:$rs1, simm12:$imm12)>
+
+// Constant materializing pattern
+def : Pat<(simm32:$imm), (ADDI (LUI (HI20 imm:$imm)),
+                               (LO12Sext imm:$imm))>;
+\end{lstlisting}
+\end{document}
